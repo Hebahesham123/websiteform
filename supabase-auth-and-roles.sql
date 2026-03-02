@@ -17,16 +17,19 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- 3. Users can read their own profile
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
 CREATE POLICY "Users can read own profile"
   ON profiles FOR SELECT
   USING (auth.uid() = user_id);
 
 -- 4. Users can insert their own profile on first login (so they get a row with default role)
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile"
   ON profiles FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- 5. Only admins can update any profile (e.g. change roles)
+DROP POLICY IF EXISTS "Admins can update profiles" ON profiles;
 CREATE POLICY "Admins can update profiles"
   ON profiles FOR UPDATE
   USING (
@@ -61,6 +64,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 8. Allow authenticated users with a profile to read sample_inquiries (dashboard)
 -- If you already have "Allow public read", drop it and use this instead for security:
 DROP POLICY IF EXISTS "Allow public read for dashboard" ON sample_inquiries;
+DROP POLICY IF EXISTS "Dashboard users can read sample_inquiries" ON sample_inquiries;
 CREATE POLICY "Dashboard users can read sample_inquiries"
   ON sample_inquiries FOR SELECT
   USING (
@@ -69,6 +73,7 @@ CREATE POLICY "Dashboard users can read sample_inquiries"
 
 -- 9. Allow dashboard users (admin or call_center) to update sample_inquiries (status, comment)
 DROP POLICY IF EXISTS "Allow anonymous update for dashboard" ON sample_inquiries;
+DROP POLICY IF EXISTS "Dashboard users can update sample_inquiries" ON sample_inquiries;
 CREATE POLICY "Dashboard users can update sample_inquiries"
   ON sample_inquiries FOR UPDATE
   USING (

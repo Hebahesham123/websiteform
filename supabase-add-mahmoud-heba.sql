@@ -1,16 +1,13 @@
--- Set Mahmoud as admin and Heba as call center
--- Replace the emails below with the exact emails they use to sign in.
+-- Grant dashboard access: add users to profiles with role admin or call_center
 --
--- 1. Create both users first: Supabase → Authentication → Users → Add user
---    - Add Mahmoud: email + password 123
---    - Add Heba: email + password 123
--- 2. Have each user sign in once to the dashboard (so a profile row is created).
--- 3. Run the two UPDATE lines below with their real emails.
+-- 1. Run supabase-auth-and-roles.sql first (creates profiles table and RLS).
+-- 2. Create users in Supabase → Authentication → Users if needed.
+-- 3. Run the block below for the user who needs access, then refresh the dashboard.
 
-UPDATE profiles SET role = 'admin' WHERE email = 'mahmoud@example.com';
-UPDATE profiles SET role = 'call_center' WHERE email = 'heba@example.com';
-
--- Heba (heba1@gmail.com) as call center (by user_id)
+-- Heba (heba1@gmail.com) – call center
 INSERT INTO profiles (user_id, email, role)
 VALUES ('d8f41cd7-aaca-45d4-9c85-c16749bb80e7', 'heba1@gmail.com', 'call_center')
-ON CONFLICT (user_id) DO UPDATE SET role = 'call_center', email = 'heba1@gmail.com';
+ON CONFLICT (user_id) DO UPDATE SET role = 'call_center', email = EXCLUDED.email;
+
+-- Mahmoud – admin (replace email with his sign-in email)
+-- UPDATE profiles SET role = 'admin' WHERE email = 'mahmoud@example.com';
