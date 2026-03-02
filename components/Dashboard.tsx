@@ -268,9 +268,10 @@ export default function Dashboard({ profile }: { profile: Profile }) {
             <p className="text-sm text-gray-500 mt-0.5">{t('subtitle')}</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-xs text-gray-500 hidden sm:inline">
-              {profile.email}
-              <span className="ml-2 px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-medium">
+            <span className="text-xs text-gray-500 hidden sm:inline-flex sm:items-center sm:gap-2">
+              <span className="truncate max-w-[180px]">{profile.email}</span>
+              <span className="text-gray-600 shrink-0" aria-hidden>·</span>
+              <span className="px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 text-xs font-medium shrink-0">
                 {profile.role === 'admin' ? t('role_admin') : t('role_call_center')}
               </span>
             </span>
