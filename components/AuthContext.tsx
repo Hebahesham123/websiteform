@@ -11,6 +11,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   hasAccess: boolean
+  retryProfileFetch: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -23,21 +24,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const fetchOrCreateProfile = useCallback(async (uid: string, email: string): Promise<Profile | null> => {
-    const { data: existing } = await supabase
+    const { data: existing, error: selectError } = await supabase
       .from(PROFILES_TABLE)
       .select('*')
       .eq('user_id', uid)
-      .single()
+      .maybeSingle()
 
+    if (selectError) {
+      console.error('Profile select failed:', selectError.message)
+      return null
+    }
     if (existing) return existing as Profile
 
-    const { data: inserted, error } = await supabase
+    const { data: inserted, error: insertError } = await supabase
       .from(PROFILES_TABLE)
       .insert({ user_id: uid, email: email || '', role: 'call_center' })
       .select()
       .single()
 
-    if (error) return null
+    if (insertError) {
+      console.error('Profile insert failed:', insertError.message)
+      return null
+    }
     return inserted as Profile
   }, [])
 
@@ -66,6 +74,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [fetchOrCreateProfile])
 
+  useEffect(() => {
+    if (loading || !user || profile) return
+    const t = setTimeout(() => {
+      fetchOrCreateProfile(user.id, user.email ?? '').then((p) => {
+        if (p) setProfile(p)
+      })
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [loading, user, profile, fetchOrCreateProfile])
+
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message ?? null }
@@ -79,8 +97,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasAccess = !!profile && ALLOWED_ROLES.includes(profile.role)
 
+  const retryProfileFetch = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    const p = await fetchOrCreateProfile(user.id, user.email ?? '')
+    setProfile(p)
+    setLoading(false)
+  }, [user, fetchOrCreateProfile])
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, hasAccess }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, hasAccess, retryProfileFetch }}>
       {children}
     </AuthContext.Provider>
   )
