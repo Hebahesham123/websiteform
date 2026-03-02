@@ -10,6 +10,9 @@ Professional dashboard for **sample_inquiries** with real-time updates. Built wi
 - **Live updates** – New submissions appear automatically; status changes sync in real time
 - **Stats** – Total, today, and this week
 - **Search, sort, limit** – Filter and paginate the table
+- **Serial No.** – First column shows row number (1, 2, 3…) by current order
+- **Filter by status** – Dropdown “Filter by status” to show only New, Reached, Done, Cancelled, or Not reached
+- **Export** – Green “Export” button downloads the current list (search + status filter) as CSV
 
 ## Setup
 
@@ -25,7 +28,14 @@ Professional dashboard for **sample_inquiries** with real-time updates. Built wi
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+   Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+
+4. **Sign in**  
+   You must sign in with an **admin** or **call center** account (see `supabase-auth-and-roles.sql` and `supabase-add-mahmoud-heba.sql` to create users). Until you sign in, you will only see the login screen.
+
+## Activity log (who changed what)
+
+To see **Activity** (status and comment changes) in each submission’s detail panel, create the activity table and policies. In Supabase **SQL Editor**, run the contents of **`supabase-activity-log.sql`**. If you skip this, the Activity section will show an error or “No edits yet” and changes won’t be logged.
 
 ## Enable Realtime
 

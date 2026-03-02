@@ -38,6 +38,7 @@ export default function SubmissionDetail({
   const [comment, setComment] = useState(submission?.comment ?? '')
   const [draftStatus, setDraftStatus] = useState<SubmissionStatus | null>(null)
   const [activity, setActivity] = useState<SubmissionActivity[]>([])
+  const [activityError, setActivityError] = useState<string | null>(null)
   const [logsOpen, setLogsOpen] = useState(false)
 
   useEffect(() => {
@@ -51,12 +52,20 @@ export default function SubmissionDetail({
 
   useEffect(() => {
     if (!submission?.id) return
+    setActivityError(null)
     supabase
       .from(ACTIVITY_TABLE)
       .select('*')
       .eq('sample_inquiry_id', submission.id)
       .order('created_at', { ascending: false })
-      .then(({ data }) => setActivity((data as SubmissionActivity[]) ?? []))
+      .then(({ data, error }) => {
+        if (error) {
+          setActivityError(error.message)
+          setActivity([])
+          return
+        }
+        setActivity((data as SubmissionActivity[]) ?? [])
+      })
   }, [submission?.id, submission?.status, submission?.comment])
 
   if (!submission) return null
@@ -186,28 +195,75 @@ export default function SubmissionDetail({
               </svg>
             </button>
             {logsOpen && (
-              <div className="mt-2 pl-1">
-                {activity.length === 0 ? (
+              <div className="mt-2 space-y-4 pl-1">
+                {activityError ? (
+                  <p className="text-sm text-amber-400 py-2" role="alert">
+                    {t('activity_load_error')}
+                  </p>
+                ) : activity.length === 0 ? (
                   <p className="text-sm text-gray-500 py-2">{t('activity_empty')}</p>
                 ) : (
-                  <ul className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {activity.map((act) => (
-                      <li
-                        key={act.id}
-                        className="text-sm border-l-2 rtl:border-l-0 rtl:border-r-2 border-gray-600 pl-3 rtl:pl-0 rtl:pr-3 py-1.5 bg-[#0d1117]/50 rounded-r rtl:rounded-r-none rtl:rounded-l"
-                      >
-                        <span className="text-gray-400 block text-xs">
-                          {formatDate(act.created_at, locale)}
-                        </span>
-                        <span className="text-gray-300 font-medium">{act.user_email}</span>
-                        <span className="text-gray-500 mx-1">·</span>
-                        <span className="text-gray-400">
-                          {act.action === 'status_update' ? t('activity_status') : t('activity_comment')}
-                          {formatActivityDetails(act) ? `: ${formatActivityDetails(act)}` : ''}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    {(() => {
+                      const statusLogs = activity.filter((a) => a.action === 'status_update')
+                      const commentLogs = activity.filter((a) => a.action === 'comment_update')
+                      return (
+                        <>
+                          {statusLogs.length > 0 && (
+                            <div>
+                              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                                {t('logs_status_title')} ({statusLogs.length})
+                              </h4>
+                              <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                {statusLogs.map((act) => (
+                                  <li
+                                    key={act.id}
+                                    className="text-sm border-l-2 rtl:border-l-0 rtl:border-r-2 border-emerald-600/50 pl-3 rtl:pl-0 rtl:pr-3 py-1.5 bg-[#0d1117]/50 rounded-r rtl:rounded-r-none rtl:rounded-l"
+                                  >
+                                    <span className="text-gray-400 block text-xs">
+                                      {formatDate(act.created_at, locale)}
+                                    </span>
+                                    <span className="text-gray-300 font-medium">{act.user_email}</span>
+                                    <span className="text-gray-500 mx-1">·</span>
+                                    <span className="text-gray-400">
+                                      {formatActivityDetails(act) || t('activity_status')}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {commentLogs.length > 0 && (
+                            <div>
+                              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                                {t('logs_comment_title')} ({commentLogs.length})
+                              </h4>
+                              <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                {commentLogs.map((act) => (
+                                  <li
+                                    key={act.id}
+                                    className="text-sm border-l-2 rtl:border-l-0 rtl:border-r-2 border-blue-600/50 pl-3 rtl:pl-0 rtl:pr-3 py-1.5 bg-[#0d1117]/50 rounded-r rtl:rounded-r-none rtl:rounded-l"
+                                  >
+                                    <span className="text-gray-400 block text-xs">
+                                      {formatDate(act.created_at, locale)}
+                                    </span>
+                                    <span className="text-gray-300 font-medium">{act.user_email}</span>
+                                    <span className="text-gray-500 mx-1">·</span>
+                                    <span className="text-gray-400 whitespace-pre-wrap break-words">
+                                      {formatActivityDetails(act) || t('activity_comment')}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {statusLogs.length === 0 && commentLogs.length === 0 && (
+                            <p className="text-sm text-gray-500 py-2">{t('activity_empty')}</p>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </>
                 )}
               </div>
             )}

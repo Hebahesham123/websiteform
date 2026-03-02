@@ -14,7 +14,7 @@ export default function CommentCell({
   comment: string | null
   onBlur: (id: string, comment: string | null) => void
 }) {
-  const { t } = useLocale()
+  const { t, dir } = useLocale()
   const [value, setValue] = useState(comment ?? '')
   const [expanded, setExpanded] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -56,7 +56,7 @@ export default function CommentCell({
         {preview || <span className="text-gray-500">{t('comment_add')}</span>}
       </button>
       {expanded && (
-        <div className="absolute left-0 top-full mt-1 z-[100] w-[320px] max-w-[90vw] rounded-lg bg-[#21262d] border border-gray-600 shadow-xl p-3">
+        <div className={`absolute top-full mt-1 z-[100] w-[320px] max-w-[90vw] rounded-lg bg-[#21262d] border border-gray-600 shadow-xl p-3 ${dir === 'rtl' ? 'left-0' : 'right-0'}`}>
           <label className="block text-xs text-gray-400 mb-1">{t('comment')}</label>
           <textarea
             value={value}

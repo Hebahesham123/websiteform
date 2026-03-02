@@ -40,8 +40,8 @@ export type SubmissionStatus =
 export const STATUS_OPTIONS: { value: SubmissionStatus; label: string }[] = [
   { value: 'new', label: 'New' },
   { value: 'reached', label: 'Reached' },
-  { value: 'done', label: 'Done' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'done', label: 'Lead created' },
+  { value: 'cancelled', label: 'Lost' },
   { value: 'not_reached', label: 'Not reached' },
 ]
 

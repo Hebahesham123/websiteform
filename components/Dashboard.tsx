@@ -36,6 +36,7 @@ export default function Dashboard({ profile }: { profile: Profile }) {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [limit, setLimit] = useState(25)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
   const [pendingStatus, setPendingStatus] = useState<Record<string, SubmissionStatus>>({})
 
@@ -60,13 +61,16 @@ export default function Dashboard({ profile }: { profile: Profile }) {
 
   const logActivity = useCallback(
     async (inquiryId: string, action: string, details: string | null) => {
-      await supabase.from(ACTIVITY_TABLE).insert({
+      const { error } = await supabase.from(ACTIVITY_TABLE).insert({
         sample_inquiry_id: inquiryId,
         user_id: profile.user_id,
         user_email: profile.email,
         action,
         details,
       })
+      if (error) {
+        console.error('Activity log insert failed:', error.message)
+      }
     },
     [profile.user_id, profile.email]
   )
@@ -199,6 +203,44 @@ export default function Dashboard({ profile }: { profile: Profile }) {
 
   const { today, week } = getTodayAndWeek(submissions)
 
+  const handleExport = useCallback((rows: SampleInquiry[]) => {
+    const escape = (v: unknown): string => {
+      const s = v == null ? '' : String(v)
+      if (s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r')) {
+        return '"' + s.replace(/"/g, '""') + '"'
+      }
+      return s
+    }
+    const statusLabel = (s: string | null | undefined) =>
+      t(`status_${s ?? 'new'}` as 'status_new') || String(s ?? 'new')
+    const headers = ['No.', 'Date', 'Name', 'Phone', 'Address', 'Message', 'Requested samples', 'Status', 'Comment', 'Created at']
+    const csvRows = [
+      headers.join(','),
+      ...rows.map((row, i) =>
+        [
+          i + 1,
+          escape(row.created_at ?? ''),
+          escape(row.name),
+          escape(row.phone),
+          escape(row.address),
+          escape(row.message),
+          escape(row.requested_samples),
+          escape(statusLabel(row.status)),
+          escape(row.comment),
+          escape(row.created_at ?? ''),
+        ].join(',')
+      ),
+    ]
+    const csv = csvRows.join('\r\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `sample-inquiries-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [t])
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6" dir={dir}>
@@ -266,6 +308,9 @@ export default function Dashboard({ profile }: { profile: Profile }) {
         <SubmissionsTable
           submissions={submissions}
           pendingStatus={pendingStatus}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          onExport={handleExport}
           onSelect={setSelected}
           onStatusDraft={onStatusDraft}
           onStatusSave={onStatusSave}
