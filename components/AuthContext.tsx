@@ -1,8 +1,11 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, PROFILES_TABLE, type Profile, type UserRole } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
+
+const PROFILE_FETCH_TIMEOUT_MS = 4000
+const INITIAL_LOAD_MAX_MS = 4000
 
 type AuthContextValue = {
   user: User | null
@@ -24,6 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [profileChecked, setProfileChecked] = useState(false)
+  const userRef = useRef<User | null>(null)
+  userRef.current = user
 
   const fetchOrCreateProfile = useCallback(async (uid: string, email: string): Promise<Profile | null> => {
     const { data: existing, error: selectError } = await supabase
@@ -51,16 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return inserted as Profile
   }, [])
 
-  // Guaranteed: after 3s always show UI (login or dashboard), never stuck on loading
+  // Only release initial load when we still have no user (so we don't sign out a user who just logged in)
   useEffect(() => {
     const t = setTimeout(() => {
-      setProfileChecked(true)
-      setLoading(false)
-    }, 3000)
+      if (userRef.current === null) {
+        setProfileChecked(true)
+        setLoading(false)
+      }
+    }, INITIAL_LOAD_MAX_MS)
     return () => clearTimeout(t)
   }, [])
 
-  // Single source of truth: only onAuthStateChange (no getSession()) to avoid auth lock contention / "Lock broken by steal" in Strict Mode
+  // Single source of truth: only onAuthStateChange (no getSession()) to avoid auth lock contention
   useEffect(() => {
     let cancelled = false
 
@@ -74,15 +81,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
       setProfileChecked(false)
+      setLoading(true)
+      let done = false
+      const profileTimeout = setTimeout(() => {
+        if (cancelled || done) return
+        done = true
+        setProfileChecked(true)
+        setLoading(false)
+      }, PROFILE_FETCH_TIMEOUT_MS)
       try {
         const p = await fetchOrCreateProfile(session.user.id, session.user.email ?? '')
-        if (!cancelled) {
+        if (cancelled) return
+        if (!done) {
+          done = true
+          clearTimeout(profileTimeout)
           setProfile(p)
           setProfileChecked(true)
           setLoading(false)
         }
       } catch (e) {
-        if (!cancelled) {
+        if (!cancelled && !done) {
+          done = true
+          clearTimeout(profileTimeout)
           setProfileChecked(true)
           setLoading(false)
         }
