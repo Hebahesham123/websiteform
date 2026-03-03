@@ -51,6 +51,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return inserted as Profile
   }, [])
 
+  // Guaranteed: after 3s always show UI (login or dashboard), never stuck on loading
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setProfileChecked(true)
+      setLoading(false)
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [])
+
   useEffect(() => {
     let cancelled = false
 
@@ -68,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!cancelled) {
         setProfile(p)
         setProfileChecked(true)
+        setLoading(false)
       }
     })
 
@@ -100,16 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
     })
 
-    // Hard cap: after 6 seconds always show UI (login or next step), never stuck on loading
-    const safetyTimeout = setTimeout(() => {
-      if (cancelled) return
-      setProfileChecked(true)
-      setLoading(false)
-    }, 6000)
-
     return () => {
       cancelled = true
-      clearTimeout(safetyTimeout)
       subscription.unsubscribe()
     }
   }, [fetchOrCreateProfile])
