@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { supabase, PROFILES_TABLE, type Profile, type UserRole } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
-const PROFILE_FETCH_TIMEOUT_MS = 4000
+const PROFILE_FETCH_TIMEOUT_MS = 8000
 const INITIAL_LOAD_MAX_MS = 4000
 
 type AuthContextValue = {
@@ -90,6 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
       }, PROFILE_FETCH_TIMEOUT_MS)
       try {
+        // Brief delay so Supabase client has the new session before RLS runs
+        await new Promise((r) => setTimeout(r, 150))
+        if (cancelled) return
         const p = await fetchOrCreateProfile(session.user.id, session.user.email ?? '')
         if (cancelled) return
         if (!done) {
