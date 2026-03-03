@@ -72,7 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     // When we have a session, wait for profile fetch before showing UI (so we don't sign out on refresh before profile loads)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    Promise.race([
+      supabase.auth.getSession(),
+      new Promise<{ data: { session: null } }>((resolve) => setTimeout(() => resolve({ data: { session: null } }), 5000)),
+    ]).then(({ data: { session } }) => {
       if (cancelled) return
       setUser(session?.user ?? null)
       if (!session?.user) {
@@ -87,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfileChecked(true)
           setLoading(false)
         }
-      }, 5000)
+      }, 4000)
       fetchOrCreateProfile(session.user.id, session.user.email ?? '').then((p) => {
         if (cancelled) return
         if (profileTimeout) clearTimeout(profileTimeout)
@@ -97,10 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
     })
 
-    // If getSession() hangs (e.g. network), show login after 4 seconds
+    // Hard cap: after 6 seconds always show UI (login or next step), never stuck on loading
     const safetyTimeout = setTimeout(() => {
-      setLoading((prev) => (prev ? false : prev))
-    }, 4000)
+      if (cancelled) return
+      setProfileChecked(true)
+      setLoading(false)
+    }, 6000)
 
     return () => {
       cancelled = true
